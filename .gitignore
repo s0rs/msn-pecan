@@ -10,3 +10,8 @@
 *.mo
 
 win32/libmsn-pecan/
+
+# build artifacts
+*.a
+adium-pecan/build/
+adium-pecan/dist/

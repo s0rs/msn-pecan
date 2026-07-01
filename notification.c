@@ -216,6 +216,14 @@ msn_notification_destroy(MsnNotification *notification)
     g_signal_handler_disconnect (notification->conn, notification->close_handler);
     g_signal_handler_disconnect (notification->conn, notification->error_handler);
 
+    /*
+     * Close the node explicitly before freeing it so the read watch is removed
+     * now. Under Adium a pending libdispatch input block can hold a reference to
+     * the node, so the unref below may not run finalize (which would otherwise
+     * close it) — leaving the watch live to fire on a freed session and crash.
+     */
+    pn_node_close (notification->conn);
+
     pn_cmd_server_free (notification->conn);
 
     g_free(notification);

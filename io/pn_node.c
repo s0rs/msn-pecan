@@ -25,6 +25,7 @@
 
 #ifdef HAVE_LIBPURPLE
 #include <proxy.h>
+#include <eventloop.h>
 #endif /* HAVE_LIBPURPLE */
 
 void pn_node_error (PnNode *conn);
@@ -141,6 +142,31 @@ read_cb (GIOChannel *source,
     pn_log ("end");
 
     return TRUE;
+}
+
+/*
+ * Adium (and any non-glib-mainloop libpurple UI) drives I/O through the
+ * libpurple eventloop, not glib's GMainContext, so g_io_add_watch() never
+ * fires. Route the read watch through purple_input_add() instead and reuse
+ * the GIOChannel-based read_cb above.
+ */
+static void
+read_purple_cb (gpointer data,
+                gint source,
+                PurpleInputCondition cond)
+{
+    PnNode *conn = PN_NODE (data);
+
+    /*
+     * Adium delivers purple_input_add callbacks asynchronously (via libdispatch),
+     * so a read can still fire after the connection has been closed/torn down
+     * (e.g. toggling the account offline). Processing it would parse into a
+     * freed session and crash. Bail unless the connection is still open.
+     */
+    if (conn->status != PN_NODE_STATUS_OPEN)
+        return;
+
+    read_cb (NULL, G_IO_IN, data);
 }
 #endif
 
@@ -409,7 +435,7 @@ connect_cb (gpointer data,
         conn->status = PN_NODE_STATUS_OPEN;
 
         pn_info ("connected: conn=%p,channel=%p", conn, channel);
-        conn->read_watch = g_io_add_watch (channel, G_IO_IN, read_cb, conn);
+        conn->read_watch = purple_input_add (source, PURPLE_INPUT_READ, read_purple_cb, conn);
 #if 0
         g_io_add_watch (channel, G_IO_ERR | G_IO_HUP | G_IO_NVAL, close_cb, conn);
 #endif
@@ -525,7 +551,11 @@ close_impl (PnNode *conn)
 #endif
     if (conn->read_watch)
     {
+#if defined(HAVE_LIBPURPLE) && !defined(USE_GIO)
+        purple_input_remove (conn->read_watch);
+#else
         g_source_remove (conn->read_watch);
+#endif
         conn->read_watch = 0;
     }
 #endif

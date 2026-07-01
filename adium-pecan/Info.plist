@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>Pecan</string>
+	<key>CFBundleIdentifier</key>
+	<string>chat.escargot.pecan-adium</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>WLM (Pecan)</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.4</string>
+	<key>CFBundleVersion</key>
+	<string>0.1.4</string>
+	<key>NSPrincipalClass</key>
+	<string>PecanPlugin</string>
+	<key>AIMinimumAdiumVersionRequirement</key>
+	<string>1.5.10</string>
+	<key>CFBundleGetInfoString</key>
+	<string>WLM (Pecan) 0.1.4 — MSN/WLM (Escargot) protocol for Adium. GNU GPL v2.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>msn-pecan © 2007–2009 Felipe Contreras and contributors; Adium wrapper © 2026 Sean Callinan. Licensed under the GNU General Public License v2. Source: https://github.com/s0rs/msn-pecan</string>
+</dict>
+</plist>

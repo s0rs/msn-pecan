@@ -385,6 +385,18 @@ pn_contact_set_store_name (struct pn_contact *contact,
 {
     pn_debug ("passport=[%s],name=[%s]", contact->passport, name);
 
+    /*
+     * An empty store name is the same as none: Escargot contacts often have no
+     * server-side display name, only a friendly name (pushed separately as the
+     * public/server alias). store_name is applied as the buddy's LOCAL alias,
+     * which libpurple prioritises over the server alias — so an empty "" here
+     * blanks the contact-list row (Adium shows nothing) even though the
+     * friendly name is known. Coerce "" to NULL so no local alias is set and
+     * the friendly name shows through.
+     */
+    if (name && !*name)
+        name = NULL;
+
     if (contact->contactlist)
     {
         if (msn_session_get_bool (contact->contactlist->session, "use_server_alias"))

@@ -110,13 +110,23 @@ prp_cmd (MsnCmdProc *cmdproc,
             friendly_name = purple_account_get_string (account, "friendly_name", NULL);
 
             /*
-             * The server doesn't seem to store the friendly name anymore,
-             * store it in account opts.
+             * The server doesn't seem to store the friendly name anymore, so we
+             * keep it in the account opts. On the FIRST sync there's nothing
+             * stored yet, so adopt whatever the server reported (tmp).
+             *
+             * We must NOT re-send it here (the old code called
+             * msn_session_set_public_alias when a name was already stored).
+             * prp_cmd runs from inside the NS read/parse callback while the
+             * per-sync cbs_table is swapped in; issuing a PRP write back through
+             * the same connection mid-parse crashes on reconnect. The alias is
+             * already pushed to the server whenever the user actually changes it
+             * (prpl set_public_alias), so re-asserting it on every sync is both
+             * unnecessary and unsafe.
              */
-            if (friendly_name)
-                msn_session_set_public_alias (session, friendly_name);
-            else
+            if (!friendly_name) {
                 purple_account_set_string (account, "friendly_name", tmp);
+                friendly_name = tmp;
+            }
 
             purple_connection_set_display_name (connection, friendly_name);
         }
