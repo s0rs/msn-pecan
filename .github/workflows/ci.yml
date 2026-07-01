@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13   # native Intel: the plugin is x86_64 / libpurple 2.12.0
+    runs-on: self-hosted   # macOS host; x86_64 native or arm64 cross (clang -arch x86_64)
     steps:
       - uses: actions/checkout@v4
 
