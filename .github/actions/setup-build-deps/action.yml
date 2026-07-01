@@ -1,0 +1,57 @@
+name: Set up build dependencies
+description: >
+  Install glib/pkg-config and fetch the pidgin 2.12.0 libpurple headers and the
+  Adium source tree (headers only) that the plugin build needs. Exports
+  PURPLE_INC and ADIUM_SRC to the job environment.
+
+inputs:
+  adium-ref:
+    description: Adium git ref to check out for headers (pin for reproducibility).
+    required: false
+    default: master
+
+runs:
+  using: composite
+  steps:
+    - name: Install glib + pkg-config
+      shell: bash
+      run: brew install pkg-config glib
+
+    - name: Cache pidgin 2.12.0 libpurple headers
+      id: cache-pidgin
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/pidgin-2.12.0
+        key: pidgin-2.12.0-libpurple
+
+    - name: Fetch pidgin 2.12.0 headers
+      if: steps.cache-pidgin.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "$RUNNER_TEMP"
+        curl -fL --retry 3 -o pidgin.tar.bz2 \
+          "https://sourceforge.net/projects/pidgin/files/Pidgin/2.12.0/pidgin-2.12.0.tar.bz2/download"
+        tar xjf pidgin.tar.bz2
+        rm -f pidgin.tar.bz2
+
+    - name: Cache Adium source
+      id: cache-adium
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/adium
+        key: adium-src-${{ inputs.adium-ref }}
+
+    - name: Clone Adium source (headers)
+      if: steps.cache-adium.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        git clone --depth 1 --branch "${{ inputs.adium-ref }}" \
+          https://github.com/adium/adium "$RUNNER_TEMP/adium"
+
+    - name: Export ADIUM_SRC / PURPLE_INC
+      shell: bash
+      run: |
+        echo "PURPLE_INC=$RUNNER_TEMP/pidgin-2.12.0/libpurple" >> "$GITHUB_ENV"
+        echo "ADIUM_SRC=$RUNNER_TEMP/adium" >> "$GITHUB_ENV"

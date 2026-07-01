@@ -1,0 +1,43 @@
+name: CI
+
+# Build the Adium plugin (unsigned) on every push/PR to make sure it still
+# compiles and links. No secrets, so this is safe for forks.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13   # native Intel: the plugin is x86_64 / libpurple 2.12.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up build dependencies
+        uses: ./.github/actions/setup-build-deps
+
+      - name: Build static prpl (x86_64)
+        run: |
+          make all STATIC=y CC='clang -arch x86_64' AR=ar GIO= \
+            PURPLE_CFLAGS="-I$PURPLE_INC $(pkg-config --cflags glib-2.0 gobject-2.0 gmodule-2.0)" \
+            PURPLE_LIBS= GIO_CFLAGS= GIO_LIBS=
+
+      - name: Build unsigned bundle
+        run: STRIP=1 adium-pecan/build.sh
+
+      - name: Sanity-check the binary
+        run: |
+          set -euo pipefail
+          BIN="adium-pecan/build/WLM (Pecan).AdiumLibpurplePlugin/Contents/MacOS/Pecan"
+          arch="$(lipo -archs "$BIN")"
+          echo "archs: $arch"
+          [ "$arch" = "x86_64" ] || { echo "expected x86_64"; exit 1; }
+          echo "undefined (host-resolved) symbols: $(nm -u "$BIN" | wc -l | tr -d ' ')"
+
+      - name: Upload unsigned bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: WLM-Pecan-Adium-unsigned
+          path: adium-pecan/build/WLM (Pecan).AdiumLibpurplePlugin
+          if-no-files-found: error

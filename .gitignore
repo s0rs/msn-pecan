@@ -15,3 +15,6 @@ win32/libmsn-pecan/
 *.a
 adium-pecan/build/
 adium-pecan/dist/
+
+# JetBrains IDE
+.idea/

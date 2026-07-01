@@ -62,6 +62,41 @@ Notes:
   library validation).
 - Stapling lets it pass Gatekeeper offline after download (quarantine).
 
+## CI / releasing (GitHub Actions)
+
+Two workflows drive this (`.github/workflows/`):
+
+- **`ci.yml`** — on every push/PR: builds the static prpl + unsigned bundle and
+  uploads it as an artifact. No secrets; validates the build (incl. for forks).
+- **`release.yml`** — on a `v*` tag: stamps the bundle version from the tag,
+  imports the Developer ID cert into an ephemeral keychain, registers the notary
+  API key, runs `package.sh`, and attaches `WLM-Pecan-Adium-<tag>.zip` to a
+  GitHub Release. `workflow_dispatch` runs the same but uploads an artifact
+  instead of a Release.
+
+Both fetch deps via a composite action (`.github/actions/setup-build-deps`):
+Homebrew `glib`/`pkg-config`, the pidgin-2.12.0 `libpurple` headers, and an Adium
+checkout — the pidgin tarball and Adium clone are cached.
+
+Repository **secrets** to configure (Settings → Secrets and variables → Actions):
+
+| Secret | Purpose |
+|---|---|
+| `MACOS_CERT_P12_BASE64` | Developer ID Application cert **+ private key**, exported `.p12`, base64 |
+| `MACOS_CERT_PASSWORD` | password for that `.p12` |
+| `KEYCHAIN_PASSWORD` | any string; unlocks the ephemeral CI keychain |
+| `SIGN_IDENTITY` | `Developer ID Application: <Name> (TEAMID)` |
+| `NOTARY_KEY_P8_BASE64` | App Store Connect API key `.p8`, base64 |
+| `NOTARY_KEY_ID` | API Key ID |
+| `NOTARY_ISSUER_ID` | API Issuer ID |
+
+Base64 a file with `base64 -i file` (macOS) / `base64 -w0 file` (Linux). To cut a
+release: `git tag v0.1.5 && git push origin v0.1.5`.
+
+`package.sh` honours an optional `NOTARY_KEYCHAIN` env (the workflow sets it) so
+`notarytool` finds the credential profile in the ephemeral keychain rather than
+the login keychain; unset, local behaviour is unchanged.
+
 ## Licensing (GPLv2 — required)
 
 - msn-pecan is GPLv2. `build.sh` copies `COPYING` and a source pointer into the

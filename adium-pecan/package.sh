@@ -58,7 +58,13 @@ rm -f "$ZIP"
 /usr/bin/ditto -c -k --keepParent "$BUNDLE" "$ZIP"
 
 echo "==> Submitting to the notary service (waits for result)"
-xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
+# notarytool reads the credential profile from the login keychain by default.
+# In CI (and any setup that stores the profile in a non-login keychain) set
+# NOTARY_KEYCHAIN to that keychain's path; left unset, behaviour is unchanged.
+notary_keychain_arg=()
+[ -n "${NOTARY_KEYCHAIN:-}" ] && notary_keychain_arg=(--keychain "$NOTARY_KEYCHAIN")
+xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" \
+	"${notary_keychain_arg[@]}" --wait
 
 echo "==> Stapling the ticket to the bundle"
 xcrun stapler staple "$BUNDLE"
