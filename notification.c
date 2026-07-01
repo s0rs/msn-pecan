@@ -414,7 +414,7 @@ ver_cmd(MsnCmdProc *cmdproc, MsnCommand *cmd)
     }
 
     msn_cmdproc_send(cmdproc, "CVR",
-                     "0x0409 winnt 5.1 i386 MSNMSGR 6.0.0602 MSMSGS %s",
+                     "0x0409 darwin 26.5 x86_64 Adium 1.5.10.4 MSMSGS %s",
                      msn_session_get_username(session));
 }
 
