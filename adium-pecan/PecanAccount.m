@@ -1,4 +1,5 @@
 #import "PecanAccount.h"
+#import <Adium/AIAccount.h>
 #import <prpl.h>
 #import <account.h>
 #import <status.h>
@@ -33,28 +34,33 @@
 	return NO;
 }
 
+/*
+ * Pre-fill the login server / port for a new account.
+ *
+ * Adium's account-setup UI shows a Connect Host / Port field (stored under
+ * GROUP_ACCOUNT_STATUS), but leaves it blank by default — confusing, since WLM
+ * always uses Escargot's server. CBPurpleAccount maps that host/port to the
+ * prpl's "server"/"port" options via -hostForPurple, so seeding the Adium prefs
+ * both pre-populates the visible fields and drives the connection. Only set them
+ * when unset, so a user's own edits stick.
+ */
+- (void)initAccount
+{
+	[super initAccount];
+
+	if (![self preferenceForKey:KEY_CONNECT_HOST group:GROUP_ACCOUNT_STATUS])
+		[self setPreference:@"msnmsgr.escargot.chat"
+		             forKey:KEY_CONNECT_HOST
+		              group:GROUP_ACCOUNT_STATUS];
+
+	if (![self preferenceForKey:KEY_CONNECT_PORT group:GROUP_ACCOUNT_STATUS])
+		[self setPreference:[NSNumber numberWithInt:1863]
+		             forKey:KEY_CONNECT_PORT
+		              group:GROUP_ACCOUNT_STATUS];
+}
+
 - (void)configurePurpleAccount
 {
-	/*
-	 * Populate the login server / port if they're empty.
-	 *
-	 * The prpl declares defaults (msnmsgr.escargot.chat / 1863) on its "server"
-	 * and "port" account options, but Adium's account-setup UI doesn't pre-fill
-	 * those option defaults — it stores an empty string / 0 when the user leaves
-	 * the fields blank. purple_account_get_string(acct,"server",<default>) then
-	 * returns that stored "" rather than the default, so a freshly-added account
-	 * tries to connect to an empty host. Fill them in here so a new account
-	 * connects to Escargot with no manual setup.
-	 */
-	PurpleAccount *acct = self.purpleAccount;
-	if (acct) {
-		const char *server = purple_account_get_string(acct, "server", "");
-		if (!server || !*server)
-			purple_account_set_string(acct, "server", "msnmsgr.escargot.chat");
-		if (purple_account_get_int(acct, "port", 0) == 0)
-			purple_account_set_int(acct, "port", 1863);
-	}
-
 	/*
 	 * Build the account's (and its buddies') libpurple presence in place.
 	 *
@@ -74,29 +80,42 @@
 	 * replicate what purple_account_new() does and attach/repair the presences in
 	 * place — no account removal, no churn, no dangling references.
 	 */
+	PurpleAccount *acct = self.purpleAccount;
 	PurplePlugin *prpl = acct ? purple_find_prpl([self protocolPlugin]) : NULL;
 	PurplePluginProtocolInfo *info = prpl ? PURPLE_PLUGIN_PROTOCOL_INFO(prpl) : NULL;
 	if (acct && info && info->status_types) {
-		/* Status types must exist before any presence can be given real statuses. */
-		purple_account_set_status_types(acct, info->status_types(acct));
-
-		/* Account presence. */
 		PurplePresence *pres = purple_account_get_presence(acct);
-		if (pres == NULL) {
-			acct->presence = purple_presence_new_for_account(acct);
-			pres = acct->presence;
-		} else if (purple_presence_get_status(pres, "available") == NULL) {
-			purple_presence_add_list(pres, purple_prpl_get_statuses(acct, pres));
+		BOOL accountHollow = (pres == NULL ||
+		                      purple_presence_get_status(pres, "available") == NULL);
+
+		/*
+		 * Only (re)build the account's status types when its presence is actually
+		 * hollow. A healthy account (created while the prpl was registered — e.g. a
+		 * brand-new account) already has a presence whose PurpleStatus objects
+		 * reference the current status types; calling purple_account_set_status_types
+		 * again frees those types out from under the live statuses, and the
+		 * set_status_active below then dereferences freed memory → crash.
+		 */
+		if (accountHollow) {
+			purple_account_set_status_types(acct, info->status_types(acct));
+
+			if (pres == NULL) {
+				acct->presence = purple_presence_new_for_account(acct);
+				pres = acct->presence;
+			} else {
+				purple_presence_add_list(pres, purple_prpl_get_statuses(acct, pres));
+			}
+			PurpleStatusType *avail =
+				purple_account_get_status_type_with_primitive(acct, PURPLE_STATUS_AVAILABLE);
+			purple_presence_set_status_active(pres,
+				avail ? purple_status_type_get_id(avail) : "offline", TRUE);
 		}
-		PurpleStatusType *avail =
-			purple_account_get_status_type_with_primitive(acct, PURPLE_STATUS_AVAILABLE);
-		purple_presence_set_status_active(pres,
-			avail ? purple_status_type_get_id(avail) : "offline", TRUE);
 
 		/*
 		 * Repair each buddy's hollow presence so incoming presence (ILN/NLN) can
 		 * actually mark them online. Buddies added later (post-connect sync) build
-		 * their presence with status types already set, so they're fine.
+		 * their presence with status types already set, so they're fine. Uses the
+		 * account's (now valid) status types.
 		 */
 		GSList *buddies = purple_find_buddies(acct, NULL);
 		for (GSList *l = buddies; l; l = l->next) {
