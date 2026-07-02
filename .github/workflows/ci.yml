@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: self-hosted   # macOS host; x86_64 native or arm64 cross (clang -arch x86_64)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up build dependencies
         uses: ./.github/actions/setup-build-deps
@@ -36,7 +36,7 @@ jobs:
           echo "undefined (host-resolved) symbols: $(nm -u "$BIN" | wc -l | tr -d ' ')"
 
       - name: Upload unsigned bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: WLM-Pecan-Adium-unsigned
           path: adium-pecan/build/WLM (Pecan).AdiumLibpurplePlugin
