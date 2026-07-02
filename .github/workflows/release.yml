@@ -24,7 +24,7 @@ jobs:
   release:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up build dependencies
         uses: ./.github/actions/setup-build-deps
@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload artifact (manual dispatch)
         if: github.ref_type != 'tag'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6  
         with:
           name: ${{ steps.asset.outputs.name }}
           path: ${{ steps.asset.outputs.path }}
